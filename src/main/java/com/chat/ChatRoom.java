@@ -17,7 +17,8 @@ public class ChatRoom {
     public static ChatRoom get() { return INSTANCE; }
 
     private final Gson gson = new Gson();
-    private final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm:ss")
+        .withZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
 
     // Config (set by admin)
     private String roomName    = "Phòng Chat Chung";
