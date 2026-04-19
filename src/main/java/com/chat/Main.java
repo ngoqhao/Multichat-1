@@ -1,12 +1,15 @@
 package com.chat;
 
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.server.config.JettyWebSocketServletContainerInitializer;
-
-import java.net.URL;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -14,34 +17,49 @@ public class Main {
 
         Server server = new Server(port);
 
-        // ── Handler 1: WebSocket + REST ──
-        ServletContextHandler wsCtx = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        wsCtx.setContextPath("/");
+        ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        ctx.setContextPath("/");
 
-        wsCtx.addServlet(AdminServlet.class, "/api/admin/*");
+        // Serve index.html
+        ctx.addServlet(new ServletHolder(new StaticServlet("static/index.html", "text/html")), "/");
+        // Serve admin.html
+        ctx.addServlet(new ServletHolder(new StaticServlet("static/admin.html", "text/html")), "/admin.html");
+        // REST
+        ctx.addServlet(AdminServlet.class, "/api/admin/*");
 
-        JettyWebSocketServletContainerInitializer.configure(wsCtx, (context, container) -> {
+        // WebSocket
+        JettyWebSocketServletContainerInitializer.configure(ctx, (context, container) -> {
             container.setMaxTextMessageSize(64 * 1024);
             container.addMapping("/ws/chat",  ChatWebSocketCreator.class);
             container.addMapping("/ws/admin", AdminWebSocketCreator.class);
         });
 
-        // ── Handler 2: Static files ──
-        URL staticUrl = Main.class.getClassLoader().getResource("static");
-        if (staticUrl == null) throw new RuntimeException("Cannot find static resources!");
-
-        ResourceHandler staticHandler = new ResourceHandler();
-        staticHandler.setDirectoriesListed(false);
-        staticHandler.setWelcomeFiles(new String[]{"index.html"});
-        staticHandler.setResourceBase(staticUrl.toExternalForm());
-
-        HandlerList handlers = new HandlerList();
-        handlers.addHandler(wsCtx);
-        handlers.addHandler(staticHandler);
-
-        server.setHandler(handlers);
+        server.setHandler(ctx);
         server.start();
         System.out.println("✅ MultiChat server started on port " + port);
         server.join();
+    }
+
+    // Servlet đọc file từ classpath và trả về
+    static class StaticServlet extends HttpServlet {
+        private final String resourcePath;
+        private final String contentType;
+
+        StaticServlet(String resourcePath, String contentType) {
+            this.resourcePath = resourcePath;
+            this.contentType  = contentType;
+        }
+
+        @Override
+        protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+            resp.setContentType(contentType + ";charset=UTF-8");
+            try (InputStream in = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+                if (in == null) {
+                    resp.sendError(500, "Resource not found: " + resourcePath);
+                    return;
+                }
+                resp.getOutputStream().write(in.readAllBytes());
+            }
+        }
     }
 }
