@@ -225,7 +225,7 @@ public class ChatRoom {
         catch (IOException ignored) {}
     }
 
-    private String now() { return LocalTime.now().format(dtf); }
+    private String now() { return LocalTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).format(dtf); }
     private int rnd()    { return (int)(Math.random() * 9000 + 1000); }
     private static String ipOf(Session s) {
     try {
