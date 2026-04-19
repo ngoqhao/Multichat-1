@@ -1,3 +1,4 @@
+// THAY TOÀN BỘ Main.java bằng code này:
 package com.chat;
 
 import org.eclipse.jetty.server.Server;
@@ -24,16 +25,19 @@ public class Main {
         ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
         ctx.setContextPath("/");
 
+        // Static pages
         ctx.addServlet(new ServletHolder(new StaticServlet("static/index.html")), "");
         ctx.addServlet(new ServletHolder(new StaticServlet("static/index.html")), "/index.html");
         ctx.addServlet(new ServletHolder(new StaticServlet("static/admin.html")), "/admin.html");
 
+        // REST
         ctx.addServlet(AdminServlet.class, "/api/admin/*");
 
+        // WebSocket - dùng LAMBDA, không dùng class reference
         JettyWebSocketServletContainerInitializer.configure(ctx, (context, container) -> {
             container.setMaxTextMessageSize(64 * 1024);
-            container.addMapping("/ws/chat",  ChatWebSocketCreator.class);
-            container.addMapping("/ws/admin", AdminWebSocketCreator.class);
+            container.addMapping("/ws/chat",  (req, resp) -> new ChatSocket());
+            container.addMapping("/ws/admin", (req, resp) -> new AdminSocket());
         });
 
         server.setHandler(ctx);
