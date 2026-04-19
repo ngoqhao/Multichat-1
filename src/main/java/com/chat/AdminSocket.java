@@ -3,14 +3,15 @@ package com.chat;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketAdapter;
+import org.eclipse.jetty.websocket.api.WebSocketListener;
 
-public class AdminSocket extends WebSocketAdapter {
+public class AdminSocket implements WebSocketListener {
     private final Gson gson = new Gson();
+    private Session session;
 
     @Override
     public void onWebSocketConnect(Session session) {
-        super.onWebSocketConnect(session);
+        this.session = session;
         ChatRoom.get().addAdminSession(session);
     }
 
@@ -20,6 +21,7 @@ public class AdminSocket extends WebSocketAdapter {
             JsonObject json = gson.fromJson(message, JsonObject.class);
             String action = json.get("action").getAsString();
             ChatRoom room = ChatRoom.get();
+
             switch (action) {
                 case "configure" -> room.configure(
                     json.get("roomName").getAsString(),
@@ -27,9 +29,9 @@ public class AdminSocket extends WebSocketAdapter {
                     json.has("welcomeMsg") ? json.get("welcomeMsg").getAsString() : "Chào mừng!",
                     json.has("maxUsers")   ? json.get("maxUsers").getAsInt()       : 50);
                 case "close_room" -> room.closeRoom();
-                case "kick"      -> room.kickUser(json.get("username").getAsString());
-                case "broadcast" -> room.adminBroadcast(json.get("text").getAsString());
-                case "ping"      -> room.notifyAdmins();
+                case "kick"       -> room.kickUser(json.get("username").getAsString());
+                case "broadcast"  -> room.adminBroadcast(json.get("text").getAsString());
+                case "ping"       -> room.notifyAdmins();
             }
         } catch (Exception e) {
             System.err.println("AdminSocket error: " + e.getMessage());
@@ -37,13 +39,15 @@ public class AdminSocket extends WebSocketAdapter {
     }
 
     @Override
-    public void onWebSocketClose(int s, String r) {
-        ChatRoom.get().removeAdminSession(getSession());
-        super.onWebSocketClose(s, r);
+    public void onWebSocketClose(int statusCode, String reason) {
+        if (session != null) ChatRoom.get().removeAdminSession(session);
     }
 
     @Override
-    public void onWebSocketError(Throwable c) {
-        ChatRoom.get().removeAdminSession(getSession());
+    public void onWebSocketError(Throwable cause) {
+        if (session != null) ChatRoom.get().removeAdminSession(session);
     }
+
+    @Override
+    public void onWebSocketBinary(byte[] payload, int offset, int len) {}
 }
