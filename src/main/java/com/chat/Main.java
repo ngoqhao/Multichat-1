@@ -1,10 +1,12 @@
 package com.chat;
 
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.server.config.JettyWebSocketServletContainerInitializer;
+
+import java.net.URL;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -12,29 +14,32 @@ public class Main {
 
         Server server = new Server(port);
 
-        // Static files handler
-        ResourceHandler staticHandler = new ResourceHandler();
-        staticHandler.setDirectoriesListed(false);
-        staticHandler.setWelcomeFiles(new String[]{"index.html"});
-        staticHandler.setResourceBase(
-            Main.class.getClassLoader().getResource("static").toExternalForm()
-        );
+        ServletContextHandler ctx = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        ctx.setContextPath("/");
 
-        // WebSocket + REST handler
-        ServletContextHandler wsHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        wsHandler.setContextPath("/");
-        wsHandler.addServlet(AdminServlet.class, "/api/admin/*");
-        JettyWebSocketServletContainerInitializer.configure(wsHandler, (context, container) -> {
+        // ── Serve static files from classpath:/static ──
+        URL staticUrl = Main.class.getClassLoader().getResource("static");
+        if (staticUrl == null) throw new RuntimeException("Cannot find static resources!");
+        ctx.setResourceBase(staticUrl.toExternalForm());
+        ctx.setWelcomeFiles(new String[]{"index.html"});
+
+        ServletHolder defaultHolder = new ServletHolder("default", DefaultServlet.class);
+        defaultHolder.setInitParameter("dirAllowed", "false");
+        defaultHolder.setInitParameter("welcomeServlets", "false");
+        defaultHolder.setInitParameter("redirectWelcome", "false");
+        ctx.addServlet(defaultHolder, "/");
+
+        // ── REST endpoint ──
+        ctx.addServlet(AdminServlet.class, "/api/admin/*");
+
+        // ── WebSocket endpoints ──
+        JettyWebSocketServletContainerInitializer.configure(ctx, (context, container) -> {
             container.setMaxTextMessageSize(64 * 1024);
-            container.addMapping("/ws/chat", ChatWebSocketCreator.class);
+            container.addMapping("/ws/chat",  ChatWebSocketCreator.class);
             container.addMapping("/ws/admin", AdminWebSocketCreator.class);
         });
 
-        HandlerList handlers = new HandlerList();
-        handlers.addHandler(wsHandler);
-        handlers.addHandler(staticHandler);
-
-        server.setHandler(handlers);
+        server.setHandler(ctx);
         server.start();
         System.out.println("✅ MultiChat server started on port " + port);
         server.join();
