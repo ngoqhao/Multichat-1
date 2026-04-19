@@ -193,11 +193,23 @@ function doConnect() {
   ws.onmessage = e => handleMsg(JSON.parse(e.data));
 
   ws.onclose = () => {
-    setDot(false);
-    if (myUsername) addSys('Mất kết nối với server.');
-  };
+        setDot(false);
+        if (myUsername) {
+            // Đang trong phòng chat → server bị down, tự đá ra sau 3 giây
+            addSys('⚠️ Mất kết nối với server. Đang trở về màn hình chính...');
+            setTimeout(() => doLeave(), 3000);
+        }
+    };
 
-  ws.onerror = () => showErr('Không thể kết nối. Kiểm tra server có đang chạy không.');
+  ws.onerror = () => {
+        if (myUsername) {
+            // Lỗi khi đang chat
+            setTimeout(() => doLeave(), 3000);
+        } else {
+            // Lỗi khi đang ở màn hình connect
+            showErr('⚠️ Không thể kết nối. Server có thể đang khởi động lại (free tier Render cần ~50 giây). Vui lòng thử lại sau.');
+        }
+    };
 }
 
 function handleMsg(data) {
