@@ -30,39 +30,20 @@ class AdminSocket extends WebSocketAdapter {
             JsonObject json = gson.fromJson(message, JsonObject.class);
             String action = json.get("action").getAsString();
             ChatRoom room = ChatRoom.get();
-
             switch (action) {
-                case "configure" -> {
-                    String name    = json.get("roomName").getAsString();
-                    String pass    = json.has("password")   ? json.get("password").getAsString()   : "";
-                    String welcome = json.has("welcomeMsg") ? json.get("welcomeMsg").getAsString() : "Chào mừng!";
-                    int max = json.has("maxUsers") ? json.get("maxUsers").getAsInt() : 50;
-                    room.configure(name, pass, welcome, max);
-                }
+                case "configure" -> room.configure(
+                    json.get("roomName").getAsString(),
+                    json.has("password")   ? json.get("password").getAsString()   : "",
+                    json.has("welcomeMsg") ? json.get("welcomeMsg").getAsString() : "Chào mừng!",
+                    json.has("maxUsers")   ? json.get("maxUsers").getAsInt()       : 50);
                 case "close_room" -> room.closeRoom();
-                case "kick" -> {
-                    String uname = json.get("username").getAsString();
-                    room.kickUser(uname);
-                }
-                case "broadcast" -> {
-                    String text = json.get("text").getAsString();
-                    room.adminBroadcast(text);
-                }
-                case "ping" -> room.notifyAdmins();
+                case "kick"       -> room.kickUser(json.get("username").getAsString());
+                case "broadcast"  -> room.adminBroadcast(json.get("text").getAsString());
+                case "ping"       -> room.notifyAdmins();
             }
-        } catch (Exception e) {
-            System.err.println("Admin WS error: " + e.getMessage());
-        }
+        } catch (Exception e) { System.err.println("AdminSocket error: " + e.getMessage()); }
     }
 
-    @Override
-    public void onWebSocketClose(int statusCode, String reason) {
-        ChatRoom.get().removeAdminSession(getSession());
-        super.onWebSocketClose(statusCode, reason);
-    }
-
-    @Override
-    public void onWebSocketError(Throwable cause) {
-        ChatRoom.get().removeAdminSession(getSession());
-    }
+    @Override public void onWebSocketClose(int s, String r) { ChatRoom.get().removeAdminSession(getSession()); super.onWebSocketClose(s, r); }
+    @Override public void onWebSocketError(Throwable c) { ChatRoom.get().removeAdminSession(getSession()); }
 }
