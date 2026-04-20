@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Server Manager</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f5f5f8;--card:#fff;--accent:#3c3489;--accent2:#e9e7ff;
+  --success:#0f6e56;--danger:#a32d2d;--muted:#787882;--border:#dcdaeb;
+  --logbg:#16161e;--log-sys:#aaa0ff;--log-join:#50d296;--log-kick:#ff7878;--log-msg:#bebec9;
+}
+body{background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+.header{background:var(--accent);padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.header h1{color:#fff;font-size:18px;font-weight:700}
+.header p{color:#c8c0ff;font-size:11px;margin-top:2px}
+.header a{color:#c8c0ff;font-size:13px;text-decoration:none;background:rgba(255,255,255,.1);padding:6px 14px;border-radius:6px}
+.header a:hover{background:rgba(255,255,255,.2)}
+
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:#fff;padding:0 16px}
+.tab{padding:12px 18px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+.content{padding:14px}
+
+/* STATUS BAR */
+.status-bar{background:var(--accent2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.dot.on{background:var(--success)}
+.status-text{font-size:13px;color:var(--muted)}
+.status-text.on{color:var(--success)}
+
+/* CARDS */
+.form-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:14px}
+.form-card h3{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
+.field input,.field textarea{width:100%;border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;outline:none;font-family:inherit}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field textarea{resize:vertical;min-height:60px}
+.ip-box{background:var(--accent2);color:var(--accent);font-family:monospace;font-size:12px;padding:8px 10px;border-radius:6px;margin-bottom:12px;white-space:pre-line}
+.btn-row{display:flex;gap:10px;justify-content:center;margin-top:4px}
+.btn{padding:9px 22px;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover:not(:disabled){background:#2a2470}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover:not(:disabled){background:#7a1a1a}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;text-align:center}
+.stat-val{font-size:28px;font-weight:700;margin-top:4px}
+.stat-lbl{font-size:11px;color:var(--muted)}
+
+/* TABLE */
+.user-table{width:100%;border-collapse:collapse;font-size:13px}
+.user-table th{background:var(--accent2);color:var(--accent);font-size:12px;padding:8px 10px;text-align:left;font-weight:700}
+.user-table td{padding:8px 10px;border-bottom:1px solid var(--border)}
+.user-table tr:last-child td{border-bottom:none}
+.user-table tr:hover td{background:#f9f8ff}
+.badge-online{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);margin-right:6px}
+.kick-btn{background:var(--danger);color:#fff;border:none;border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600}
+.kick-btn:hover{background:#7a1a1a}
+.empty-row{text-align:center;color:var(--muted);padding:20px}
+
+/* LOG */
+.log-area{background:var(--logbg);border-radius:8px;padding:12px;height:300px;overflow-y:auto;font-family:Consolas,monospace;font-size:12px}
+.log-area::-webkit-scrollbar{width:4px}
+.log-area::-webkit-scrollbar-thumb{background:#333}
+.log-line{margin-bottom:2px}
+.log-sys{color:var(--log-sys)}
+.log-join{color:var(--log-join)}
+.log-kick{color:var(--log-kick)}
+.log-msg{color:var(--log-msg)}
+
+/* BROADCAST */
+.broadcast-bar{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:center;margin-top:14px}
+.broadcast-bar label{font-size:13px;color:var(--muted);white-space:nowrap}
+.broadcast-bar input{flex:1;border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;outline:none;font-family:inherit}
+.broadcast-bar input:focus{border-color:var(--accent)}
+.broadcast-bar button{padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.broadcast-bar button:disabled{opacity:.5;cursor:not-allowed}
+
+.section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.section-title h3{font-size:13px;font-weight:700;color:var(--accent)}
+.section-title button{background:#3c3c4b;color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer}
+
+#tab1{display:block}
+#tab2{display:none}
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>Chat Server Manager</h1>
+    <p>Quản lý phòng chat WebSocket</p>
+  </div>
+  <a href="/" target="_blank">🔗 Mở phòng chat</a>
+</div>
+
+<div class="tabs">
+  <div class="tab active" id="t1" onclick="switchTab(1)">  Mở phòng  </div>
+  <div class="tab" id="t2" onclick="switchTab(2)">  Quản lý phòng  </div>
+</div>
+
+<div class="content">
+
+<!-- ═══ TAB 1: MỞ PHÒNG ═══ -->
+<div id="tab1">
+  <div class="status-bar">
+    <div class="dot" id="openDot"></div>
+    <span class="status-text" id="openStatus">Chưa kết nối đến server</span>
+  </div>
+
+  <div class="form-card">
+    <h3>Cấu hình phòng chat</h3>
+    <div class="field">
+      <label>Tên phòng *</label>
+      <input id="cfgName" placeholder="VD: Phòng kỹ thuật, Nhóm dự án...">
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Mật khẩu phòng (để trống nếu không cần)</label>
+        <input id="cfgPass" placeholder="Nhập mật khẩu...">
+      </div>
+      <div class="field">
+        <label>Số người tối đa</label>
+        <input id="cfgMax" type="number" value="50" min="1" max="500">
+      </div>
+    </div>
+    <div class="field">
+      <label>Tin nhắn chào mừng</label>
+      <input id="cfgWelcome" placeholder="VD: Chào mừng đến phòng chat!">
+    </div>
+    <div class="field">
+      <label>Địa chỉ server (URL)</label>
+      <div class="ip-box" id="serverUrl">Đang tải...</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnStart" onclick="doConfigure()">▶  Áp dụng cấu hình</button>
+      <button class="btn btn-danger" id="btnStop" onclick="doCloseRoom()" disabled>■  Đóng phòng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB 2: QUẢN LÝ ═══ -->
+<div id="tab2">
+  <div class="status-bar">
+    <div class="dot" id="manageDot"></div>
+    <span class="status-text" id="manageStatus">Chưa kết nối đến server</span>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-lbl">Đang online</div>
+      <div class="stat-val" id="statOnline" style="color:var(--success)">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-lbl">Tổng lượt vào</div>
+      <div class="stat-val" id="statTotal" style="color:var(--accent)">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-lbl">Tin nhắn</div>
+      <div class="stat-val" id="statMsg" style="color:#a06400">0</div>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <div class="section-title">
+      <h3>Người tham gia</h3>
+    </div>
+    <table class="user-table">
+      <thead><tr><th>Tên người dùng</th><th>Địa chỉ IP</th><th>Vào lúc</th><th>Hành động</th></tr></thead>
+      <tbody id="userTableBody">
+        <tr><td colspan="4" class="empty-row">Chưa có người dùng</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="form-card">
+    <div class="section-title">
+      <h3>Nhật ký hệ thống</h3>
+      <button onclick="document.getElementById('logArea').innerHTML=''">Xoá log</button>
+    </div>
+    <div class="log-area" id="logArea"></div>
+  </div>
+
+  <div class="broadcast-bar">
+    <label>Thông báo toàn phòng:</label>
+    <input id="bcInput" placeholder="Nhập nội dung thông báo..." onkeydown="if(event.key==='Enter')doBroadcast()">
+    <button id="btnBc" onclick="doBroadcast()" disabled>Gửi thông báo</button>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+let ws = null;
+let isOpen = false;
+
+function getWsUrl() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return proto + '//' + location.host + '/ws/admin';
+}
+
+function connect() {
+  ws = new WebSocket(getWsUrl());
+  ws.onopen = () => {
+    console.log('Admin WS connected');
+    ws.send(JSON.stringify({ action: 'ping' }));
+    setInterval(() => ws && ws.readyState===1 && ws.send(JSON.stringify({action:'ping'})), 20000);
+  };
+  ws.onmessage = e => handleState(JSON.parse(e.data));
+  ws.onclose = () => {
+    setStatus(false, 'Mất kết nối. Đang thử lại...');
+    setTimeout(connect, 3000);
+  };
+}
+
+function handleState(data) {
+  if (data.type !== 'admin_state') return;
+  isOpen = data.open;
+
+  // Status bar
+  setStatus(data.open, data.open
+    ? '"' + data.roomName + '" đang chạy'
+    : 'Phòng chưa được mở / đã đóng');
+
+  // Stats
+  document.getElementById('statOnline').textContent = data.onlineCount;
+  document.getElementById('statTotal').textContent  = data.totalJoined;
+  document.getElementById('statMsg').textContent    = data.totalMessages;
+
+  // Buttons
+  document.getElementById('btnStop').disabled = !data.open;
+  document.getElementById('btnBc').disabled   = !data.open;
+
+  // User table
+  const tbody = document.getElementById('userTableBody');
+  if (!data.users || data.users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-row">Chưa có người dùng</td></tr>';
+  } else {
+    tbody.innerHTML = data.users.map(u => `
+      <tr>
+        <td><span class="badge-online"></span>${esc(u.username)}</td>
+        <td>${esc(u.ip)}</td>
+        <td>${esc(u.joinedAt)}</td>
+        <td><button class="kick-btn" onclick="doKick('${esc(u.username)}')">Kick</button></td>
+      </tr>`).join('');
+  }
+
+  // Logs
+  const logArea = document.getElementById('logArea');
+  if (data.logs && data.logs.length > 0) {
+    logArea.innerHTML = data.logs.map(l => {
+      let cls = 'log-msg';
+      if (l.includes('[VÀO]') || l.includes('[RA]')) cls = 'log-join';
+      else if (l.includes('[KICK]') || l.includes('[LỖI]')) cls = 'log-kick';
+      else if (l.includes('[HT]') || l.includes('[ADMIN]')) cls = 'log-sys';
+      return `<div class="log-line ${cls}">${esc(l)}</div>`;
+    }).join('');
+    logArea.scrollTop = logArea.scrollHeight;
+  }
+}
+
+function setStatus(on, text) {
+  ['openDot','manageDot'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el){ el.className = 'dot' + (on?' on':''); }
+  });
+  ['openStatus','manageStatus'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el){ el.textContent = text; el.className = 'status-text' + (on?' on':''); }
+  });
+}
+
+function doConfigure() {
+  const name = document.getElementById('cfgName').value.trim();
+  if (!name) { alert('Vui lòng nhập tên phòng!'); return; }
+  ws.send(JSON.stringify({
+    action:     'configure',
+    roomName:   name,
+    password:   document.getElementById('cfgPass').value.trim(),
+    welcomeMsg: document.getElementById('cfgWelcome').value.trim() || ('Chào mừng đến ' + name + '!'),
+    maxUsers:   parseInt(document.getElementById('cfgMax').value) || 50
+  }));
+  alert('Đã áp dụng cấu hình!');
+}
+
+function doCloseRoom() {
+  if (!confirm('Đóng phòng sẽ ngắt kết nối tất cả người dùng. Tiếp tục?')) return;
+  ws.send(JSON.stringify({ action: 'close_room' }));
+}
+
+function doKick(username) {
+  if (!confirm('Kick "' + username + '" khỏi phòng?')) return;
+  ws.send(JSON.stringify({ action: 'kick', username }));
+}
+
+function doBroadcast() {
+  const text = document.getElementById('bcInput').value.trim();
+  if (!text) return;
+  ws.send(JSON.stringify({ action: 'broadcast', text }));
+  document.getElementById('bcInput').value = '';
+}
+
+function switchTab(n) {
+  document.getElementById('tab1').style.display = n===1 ? 'block' : 'none';
+  document.getElementById('tab2').style.display = n===2 ? 'block' : 'none';
+  document.getElementById('t1').className = 'tab' + (n===1?' active':'');
+  document.getElementById('t2').className = 'tab' + (n===2?' active':'');
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Show server URL
+document.getElementById('serverUrl').textContent = location.origin;
+
+connect();
+</script>
+</body>
+</html>
